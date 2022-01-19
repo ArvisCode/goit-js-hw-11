@@ -1,8 +1,9 @@
 import '../sass/main.scss';
 import fetch from './fetch';
+import renderImageCard from './render';
+import scrollFun from './scrollFun';
+import { lightbox } from './lightbox';
 import { Notify } from 'notiflix/build/notiflix-notify-aio';
-import SimpleLightbox from 'simplelightbox';
-import 'simplelightbox/dist/simple-lightbox.min.css';
 
 const { searchForm, gallery, loadMoreBtn, endCollectionText } = {
   searchForm: document.querySelector('.search-form'),
@@ -10,45 +11,6 @@ const { searchForm, gallery, loadMoreBtn, endCollectionText } = {
   loadMoreBtn: document.querySelector('.load-more'),
   endCollectionText: document.querySelector('.end-collection-text'),
 };
-
-function renderImageCard(arr) {
-  const markup = arr
-    .map(
-      img => `<div class="photo-card">
-        <a href="${img.largeImageURL}">
-          <img class="photo-img" src="${img.webformatURL}" alt="${img.tags}" loading="lazy" />
-        </a>
-        <div class="info">
-          <p class="info-item">
-            <b>Likes</b>
-            ${img.likes}
-          </p>
-          <p class="info-item">
-            <b>Views</b>
-            ${img.views}
-          </p>
-          <p class="info-item">
-            <b>Comments</b>
-            ${img.comments}
-          </p>
-          <p class="info-item">
-            <b>Downloads</b>
-            ${img.downloads}
-          </p>
-        </div>
-      </div>`,
-    )
-    .join('');
-
-  gallery.insertAdjacentHTML('beforeend', markup);
-  scrollFun(-1000);
-}
-
-let lightbox = new SimpleLightbox('.photo-card a', {
-  captions: true,
-  captionsData: 'alt',
-  captionDelay: 250,
-});
 
 let currentPage = 1;
 let currentHits = 0;
@@ -70,17 +32,19 @@ async function submitSearchForm(e) {
 
   if (response.totalHits > 40) {
     loadMoreBtn.classList.remove('is-hidden');
+    endCollectionText.classList.add('is-hidden');
   } else {
     loadMoreBtn.classList.add('is-hidden');
+    endCollectionText.classList.remove('is-hidden');
   }
 
   try {
     if (response.totalHits > 0) {
       Notify.success(`Hooray! We found ${response.totalHits} images.`);
       gallery.innerHTML = '';
-      renderImageCard(response.hits);
+      renderImageCard(response.hits, gallery);
+      scrollFun(-1000);
       lightbox.refresh();
-      endCollectionText.classList.add('is-hidden');
     }
 
     if (response.totalHits === 0) {
@@ -99,7 +63,7 @@ loadMoreBtn.addEventListener('click', clickLoadMoreBtn);
 async function clickLoadMoreBtn() {
   currentPage += 1;
   const response = await fetch(searchQuery, currentPage);
-  renderImageCard(response.hits);
+  renderImageCard(response.hits, gallery);
   lightbox.refresh();
   currentHits += response.hits.length;
 
@@ -109,15 +73,4 @@ async function clickLoadMoreBtn() {
     loadMoreBtn.classList.add('is-hidden');
     endCollectionText.classList.remove('is-hidden');
   }
-}
-
-function scrollFun(step) {
-  const { height: cardHeight } = document
-    .querySelector('.gallery')
-    .firstElementChild.getBoundingClientRect();
-
-  window.scrollBy({
-    top: cardHeight * step,
-    behavior: 'smooth',
-  });
 }
